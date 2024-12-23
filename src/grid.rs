@@ -8,7 +8,7 @@ use bevy::window::PrimaryWindow;
 use crate::palette::ColorPalette;
 
 #[derive(Component)]
-#[require(InheritedVisibility, Visibility, GlobalTransform, Transform)]
+#[require(Visibility, Transform)]
 pub struct InfiniteGrid {
     color: Color,
     spacing: f32,
@@ -37,7 +37,7 @@ fn spawn_grid(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    grids: Query<(Entity, &InfiniteGrid), Added<InfiniteGrid>>,
+    mut grids: Query<(Entity, &InfiniteGrid, &mut Transform), Added<InfiniteGrid>>,
     windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     let Ok(window) = windows.get_single() else {
@@ -46,14 +46,17 @@ fn spawn_grid(
 
     let (width, height) = window.size().into();
 
-    for (entity, settings) in grids.iter() {
+    for (entity, settings, mut transform) in grids.iter_mut() {
         info!("Spawned a grid on {width}x{height} window");
+
         let mut mesh = Mesh::new(PrimitiveTopology::LineList, RenderAssetUsages::default());
         let mut positions = Vec::new();
         let mut indices = Vec::new();
 
         let spacing = settings.spacing;
         let grid_size = (width.max(height) / settings.spacing).ceil() as i32 + 1;
+
+        transform.translation.z = -1.;
 
         // Horizontal lines
         for i in 0..=grid_size {
@@ -82,10 +85,10 @@ fn spawn_grid(
             indices.len() / 2
         );
 
-        mesh.insert_attribute(
-            Mesh::ATTRIBUTE_NORMAL,
-            vec![[0.0, 0.0, 1.0]; positions.len()],
-        );
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![
+            [0.0, 0.0, 1.0];
+            positions.len()
+        ]);
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 0.0]; positions.len()]);
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
         mesh.insert_indices(Indices::U32(indices));

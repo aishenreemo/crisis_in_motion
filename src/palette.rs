@@ -47,7 +47,12 @@ const fn hex_to_srgb(hex: &'static str) -> Color {
     let g = hex_byte_to_u8(hex[3]) * 16 + hex_byte_to_u8(hex[4]);
     let b = hex_byte_to_u8(hex[5]) * 16 + hex_byte_to_u8(hex[6]);
 
-    Color::Srgba(Srgba::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.))
+    Color::Srgba(Srgba::new(
+        r as f32 / 255.0,
+        g as f32 / 255.0,
+        b as f32 / 255.0,
+        1.,
+    ))
 }
 
 const fn hex_byte_to_u8(c: u8) -> u8 {

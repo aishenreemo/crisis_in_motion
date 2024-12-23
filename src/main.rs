@@ -3,9 +3,12 @@ use bevy::window::WindowMode;
 use grid::InfiniteGrid;
 use grid::InfiniteGridPlugin;
 use palette::ColorPalette;
+use vehicle::Car;
+use vehicle::VehiclePlugin;
 
 mod grid;
 mod palette;
+mod vehicle;
 
 fn main() {
     let window_title = "Crisis in Motion".to_owned();
@@ -28,6 +31,7 @@ fn main() {
 
     app.add_plugins(DefaultPlugins.set(window_plugin));
     app.add_plugins(InfiniteGridPlugin);
+    app.add_plugins(VehiclePlugin);
     app.insert_resource(ClearColor(ColorPalette::KIZU.bg));
     app.insert_resource(ColorPalette::default());
     app.add_systems(Startup, setup);
@@ -37,4 +41,5 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d::default());
     commands.spawn(InfiniteGrid::default());
+    commands.spawn(Car::default());
 }
