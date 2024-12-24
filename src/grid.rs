@@ -37,96 +37,84 @@ fn spawn_grid(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut grids: Query<(Entity, &InfiniteGrid, &mut Transform), Added<InfiniteGrid>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
+    grid: Single<(Entity, &InfiniteGrid, &mut Transform), Added<InfiniteGrid>>,
+    window: Single<&Window, With<PrimaryWindow>>,
 ) {
-    let Ok(window) = windows.get_single() else {
-        return;
-    };
-
+    let window = window.into_inner();
     let (width, height) = window.size().into();
 
-    for (entity, settings, mut transform) in grids.iter_mut() {
-        info!("Spawned a grid on {width}x{height} window");
+    let (entity, settings, mut transform) = grid.into_inner();
+    info!("Spawned a grid on {width}x{height} window");
 
-        let mut mesh = Mesh::new(PrimitiveTopology::LineList, RenderAssetUsages::default());
-        let mut positions = Vec::new();
-        let mut indices = Vec::new();
+    let mut mesh = Mesh::new(PrimitiveTopology::LineList, RenderAssetUsages::default());
+    let mut positions = Vec::new();
+    let mut indices = Vec::new();
 
-        let spacing = settings.spacing;
-        let grid_size = (width.max(height) / settings.spacing).ceil() as i32 + 1;
+    let spacing = settings.spacing;
+    let grid_size = (width.max(height) / settings.spacing).ceil() as i32 + 1;
 
-        transform.translation.z = -1.;
+    transform.translation.z = -1.;
 
-        // Horizontal lines
-        for i in 0..=grid_size {
-            let i = i as f32;
-            let grid_size = grid_size as f32;
-            let offset = i * spacing - (grid_size * spacing / 2.0);
-            positions.push([offset, -grid_size * spacing / 2.0, 0.0]);
-            positions.push([offset, grid_size * spacing / 2.0, 0.0]);
-        }
-
-        // Vertical lines
-        for i in 0..=grid_size {
-            let offset = i as f32 * spacing - (grid_size as f32 * spacing / 2.0);
-            positions.push([-grid_size as f32 * spacing / 2.0, offset, 0.0]);
-            positions.push([grid_size as f32 * spacing / 2.0, offset, 0.0]);
-        }
-
-        for i in 0..positions.len() as u32 / 2 {
-            indices.push(i * 2);
-            indices.push(i * 2 + 1);
-        }
-
-        info!(
-            "Grid mesh: {} vertices, {} lines",
-            positions.len(),
-            indices.len() / 2
-        );
-
-        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![
-            [0.0, 0.0, 1.0];
-            positions.len()
-        ]);
-        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 0.0]; positions.len()]);
-        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-        mesh.insert_indices(Indices::U32(indices));
-
-        commands
-            .spawn((
-                Mesh2d(meshes.add(mesh)),
-                MeshMaterial2d(materials.add(ColorMaterial::from(settings.color))),
-                Transform::default(),
-            ))
-            .set_parent(entity);
+    // Horizontal lines
+    for i in 0..=grid_size {
+        let i = i as f32;
+        let grid_size = grid_size as f32;
+        let offset = i * spacing - (grid_size * spacing / 2.0);
+        positions.push([offset, -grid_size * spacing / 2.0, 0.0]);
+        positions.push([offset, grid_size * spacing / 2.0, 0.0]);
     }
+
+    // Vertical lines
+    for i in 0..=grid_size {
+        let offset = i as f32 * spacing - (grid_size as f32 * spacing / 2.0);
+        positions.push([-grid_size as f32 * spacing / 2.0, offset, 0.0]);
+        positions.push([grid_size as f32 * spacing / 2.0, offset, 0.0]);
+    }
+
+    for i in 0..positions.len() as u32 / 2 {
+        indices.push(i * 2);
+        indices.push(i * 2 + 1);
+    }
+
+    info!(
+        "Grid mesh: {} vertices, {} lines",
+        positions.len(),
+        indices.len() / 2
+    );
+
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_NORMAL,
+        vec![[0.0, 0.0, 1.0]; positions.len()],
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 0.0]; positions.len()]);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_indices(Indices::U32(indices));
+
+    commands
+        .spawn((
+            Mesh2d(meshes.add(mesh)),
+            MeshMaterial2d(materials.add(ColorMaterial::from(settings.color))),
+            Transform::default(),
+        ))
+        .set_parent(entity);
 }
 
 fn move_grid(
-    mut param_set: ParamSet<(
-        Query<&Transform, (With<Camera2d>, Changed<Transform>)>,
-        Query<(&mut Transform, &InfiniteGrid), With<InfiniteGrid>>,
-    )>,
+    camera: Single<&Transform, (With<Camera2d>, Changed<Transform>, Without<InfiniteGrid>)>,
+    grid: Single<(&mut Transform, &InfiniteGrid), With<InfiniteGrid>>,
 ) {
-    let Ok(camera_transform) = param_set.p0().get_single().cloned() else {
-        return;
-    };
+    let camera = camera.into_inner();
+    let (mut transform, settings) = grid.into_inner();
 
-    for (mut transform, settings) in param_set.p1().iter_mut() {
-        let spacing = settings.spacing;
-        let (x, y) = (
-            camera_transform.translation.x,
-            camera_transform.translation.y,
-        );
+    let spacing = settings.spacing;
+    let (x, y) = (camera.translation.x, camera.translation.y);
 
-        transform.translation.x = (x / spacing).round() * spacing;
-        transform.translation.y = (y / spacing).round() * spacing;
-    }
+    transform.translation.x = (x / spacing).round() * spacing;
+    transform.translation.y = (y / spacing).round() * spacing;
 }
 
 fn camera_panning(
-    mut cameras: Query<&mut Transform, With<Camera2d>>,
+    camera: Single<&mut Transform, With<Camera2d>>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: EventReader<MouseMotion>,
 ) {
@@ -134,10 +122,9 @@ fn camera_panning(
         return;
     }
 
+    let mut camera = camera.into_inner();
     for event in mouse_motion.read() {
-        for mut transform in cameras.iter_mut() {
-            transform.translation.x -= event.delta.x;
-            transform.translation.y += event.delta.y;
-        }
+        camera.translation.x -= event.delta.x;
+        camera.translation.y += event.delta.y;
     }
 }

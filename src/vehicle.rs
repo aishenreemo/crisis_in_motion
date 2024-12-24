@@ -7,12 +7,25 @@ use ops::sin;
 
 use crate::palette::ColorPalette;
 
+#[derive(Component)]
+#[require(Car)]
+pub struct MountedCar;
+
 #[derive(Component, Debug)]
 #[require(Visibility, Transform)]
 pub struct Car {
     speed: f32,
     steer_angle: f32,
     wheel_base: f32,
+}
+
+impl Car {
+    const MAX_STEER_ANGLE: f32 = PI / 3.;
+    fn clamp_steer_angle(&mut self) {
+        self.steer_angle = self
+            .steer_angle
+            .clamp(-Car::MAX_STEER_ANGLE, Car::MAX_STEER_ANGLE);
+    }
 }
 
 impl Default for Car {
@@ -43,43 +56,41 @@ fn spawn_car(
     mut vehicles: Query<Entity, Added<Car>>,
 ) {
     for entity in vehicles.iter_mut() {
-        commands
-            .entity(entity)
-            .insert(Mesh2d(meshes.add(Rectangle::new(75., 50.))))
-            .insert(MeshMaterial2d(
-                materials.add(ColorMaterial::from(palette.green)),
-            ));
+        let mesh = Mesh2d(meshes.add(Rectangle::new(75., 50.)));
+        let material = MeshMaterial2d(materials.add(ColorMaterial::from(palette.green)));
+        commands.entity(entity).insert(mesh).insert(material);
     }
 }
 
 fn control_car(
-    mut cameras: Query<&mut Transform, (With<Camera2d>, Without<Car>)>,
+    camera: Single<&mut Transform, (With<Camera2d>, Without<Car>)>,
+    vehicle: Single<(&mut Car, &Transform), With<MountedCar>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut vehicles: Query<(&mut Car, &Transform), With<Car>>,
 ) {
-    for (mut car, transform) in vehicles.iter_mut() {
-        if keyboard_input.pressed(KeyCode::KeyW) {
-            car.speed += 2.;
-        } 
+    let (mut car, transform) = vehicle.into_inner();
 
-        if keyboard_input.pressed(KeyCode::KeyS) {
-            car.speed -= 2.;
-        } 
+    if keyboard_input.pressed(KeyCode::KeyW) {
+        car.speed += 2.;
+    }
 
-        if keyboard_input.just_pressed(KeyCode::KeyA) {
-            car.steer_angle += f32::to_radians(1.);
-        } 
+    if keyboard_input.pressed(KeyCode::KeyS) {
+        car.speed -= 2.;
+    }
 
-        if keyboard_input.just_pressed(KeyCode::KeyD) {
-            car.steer_angle -= f32::to_radians(1.);
-        }
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        car.steer_angle += f32::to_radians(1.);
+        car.clamp_steer_angle();
+    }
 
-        if keyboard_input.pressed(KeyCode::Space) {
-            for mut cam_transform in cameras.iter_mut() {
-                cam_transform.translation.x = transform.translation.x;
-                cam_transform.translation.y = transform.translation.y;
-            }
-        }
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        car.steer_angle -= f32::to_radians(1.);
+        car.clamp_steer_angle();
+    }
+
+    if keyboard_input.pressed(KeyCode::Space) {
+        let mut camera = camera.into_inner();
+        camera.translation.x = transform.translation.x;
+        camera.translation.y = transform.translation.y;
     }
 }
 

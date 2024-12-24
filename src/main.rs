@@ -3,7 +3,7 @@ use bevy::window::WindowMode;
 use grid::InfiniteGrid;
 use grid::InfiniteGridPlugin;
 use palette::ColorPalette;
-use vehicle::Car;
+use vehicle::MountedCar;
 use vehicle::VehiclePlugin;
 
 mod grid;
@@ -41,5 +41,5 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d::default());
     commands.spawn(InfiniteGrid::default());
-    commands.spawn(Car::default());
+    commands.spawn(MountedCar);
 }
